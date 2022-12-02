@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.3.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@3.3.0/dist/tf-backend-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@^0.0.3"></script>
+</head>
+
+<body>
+<h6>
+    DEMO tfjs-backend-wasm
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackProcessor" target="_blank">MediaStreamTrackProcessor (see support)</a>
+</h6>
+<button id="start">Start</button>
+<br>
+<video id="source" width="640" height="480" autoplay></video>
+<video id="modify" width="640" height="480" autoplay></video>
+
+<script>
+    const W = 640; // image width
+    const H = 480; // image height
+
+    const startBtn = document.querySelector('button#start');
+    const videoSource = document.querySelector('video#source');
+    const videoModify = document.querySelector('video#modify');
+
+    let model
+
+
+    tf.env().set('WASM_HAS_SIMD_SUPPORT', true)
+    tf.env().set('WASM_HAS_MULTITHREAD_SUPPORT', false)
+
+    tf.setBackend('wasm').then(async (e) => {
+        console.log('setBackend', e);
+        console.log('getBackend', tf.getBackend());
+
+        model = await faceLandmarksDetection.load(
+            faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
+            {
+                maxFaces: 1,
+                shouldLoadIrisModel: false
+            }
+        );
+    })
+
+    // from webgazer
+    const drawFaceOverlay = function (ctx, keypoints) {
+        if (keypoints) {
+            ctx.fillStyle = '#e80a31';
+            ctx.strokeStyle = '#0913e8';
+            ctx.lineWidth = 0.5;
+
+            for (let i = 0; i < keypoints.length; i++) {
+                const x = keypoints[i][0];
+                const y = keypoints[i][1];
+
+                ctx.beginPath();
+                ctx.arc(x, y, 1 /* radius */, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const transformer = new TransformStream({
+        async transform(videoFrame, controller) {
+
+            ctx.clearRect(0, 0, W, H)
+            ctx.drawImage(videoFrame, 0, 0)
+
+            const predictions = await model.estimateFaces({
+                input: canvas,
+                returnTensors: false,
+                flipHorizontal: false,
+                predictIrises: false,
+            });
+
+            const positionsArray = predictions[0]?.scaledMesh
+
+            if (!positionsArray) {
+                controller.enqueue(videoFrame);
+                console.log('Not Face')
+                return
+            }
+
+            drawFaceOverlay(ctx, positionsArray)
+
+            // console.log('predictions', predictions)
+
+            const init = {
+                timestamp: videoFrame.timestamp,
+                codedWidth: W,
+                codedHeight: H,
+                format: "I420",
+            };
+
+            const newFrame = new VideoFrame(canvas, init);  //  construct an RGBA frame
+
+            controller.enqueue(newFrame);
+            videoFrame.close();
+        }
+    })
+
+
+    startBtn.onclick = async () => {
+        startBtn.disabled = true;
+
+        stream = await navigator.mediaDevices.getUserMedia({video: true});
+
+        const [track] = stream.getVideoTracks();
+
+        const trackProcessor = (new MediaStreamTrackProcessor(track));
+        const trackGenerator = new MediaStreamTrackGenerator({ kind: "video" });
+
+        trackProcessor.readable
+            .pipeThrough(transformer)
+            .pipeTo(trackGenerator.writable)
+
+        const streamAfter = new MediaStream([trackGenerator]);
+
+        videoSource.srcObject = stream
+        videoModify.srcObject = streamAfter;
+    }
+</script>
+</body>
+</html>
