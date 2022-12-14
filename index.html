@@ -73,6 +73,7 @@
 
     const transformer = new TransformStream({
         async transform(videoFrame, controller) {
+            console.time('time')
 
             ctx.clearRect(0, 0, W, H)
             ctx.drawImage(videoFrame, 0, 0)
@@ -107,6 +108,8 @@
 
             controller.enqueue(newFrame);
             videoFrame.close();
+
+            console.timeEnd('time')
         }
     })
 
