@@ -13,7 +13,7 @@
     DEMO tfjs-backend-wasm
     <a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackProcessor" target="_blank">MediaStreamTrackProcessor (see support)</a>
 </h6>
-<button id="start">Start</button>
+<button id="start" disabled>Load model...</button>
 <br>
 <video id="source" width="640" height="480" autoplay></video>
 <video id="modify" width="640" height="480" autoplay></video>
@@ -28,9 +28,9 @@
 
     let model
 
-
     tf.env().set('WASM_HAS_SIMD_SUPPORT', true)
-    tf.env().set('WASM_HAS_MULTITHREAD_SUPPORT', false)
+    // if WASM_HAS_MULTITHREAD_SUPPORT true npm run dev https://techkblog.com/fixed-sharedarraybuffer-is-not-defined/
+    tf.env().set('WASM_HAS_MULTITHREAD_SUPPORT', true)
 
     tf.setBackend('wasm').then(async (e) => {
         console.log('setBackend', e);
@@ -43,6 +43,8 @@
                 shouldLoadIrisModel: false
             }
         );
+        startBtn.disabled = false;
+        startBtn.textContent= 'Start'
     })
 
     // from webgazer

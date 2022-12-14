@@ -1,0 +1,10 @@
+{
+  "name": "tfjs-backend-wasm-landmarks-MediaStreamTrackProcessor",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "ws --cors.opener-policy \"same-origin\" --cors.embedder-policy \"require-corp\""
+  },
+  "dependencies": {
+    "local-web-server": "^5.2.1"
+  }
+}
